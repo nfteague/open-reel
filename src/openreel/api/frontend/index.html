@@ -1,0 +1,1694 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OpenReel</title>
+    <style>
+        :root {
+            --bg: #000000;
+            --surface: #0a0a0a;
+            --surface-2: #141414;
+            --border: #1f1f1f;
+            --border-hover: #2a2a2a;
+            --text: #f0f0f0;
+            --text-dim: #777777;
+            --accent: #00e676;
+            --accent-hover: #00ff88;
+            --accent-dim: rgba(0, 230, 118, 0.1);
+            --accent-border: rgba(0, 230, 118, 0.25);
+            --success: #00e676;
+            --error: #ff4444;
+            --blue: #64b5f6;
+            --orange: #ffb74d;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+        }
+
+        /* Layout */
+        .container { max-width: 1100px; margin: 0 auto; padding: 1.5rem; }
+
+        header {
+            display: flex;
+            align-items: baseline;
+            gap: 0.75rem;
+            margin-bottom: 2rem;
+            cursor: pointer;
+        }
+
+        header h1 { font-size: 1.3rem; font-weight: 600; letter-spacing: -0.02em; }
+        header span { color: var(--text-dim); font-size: 0.8rem; }
+
+        .view { display: none; }
+        .view.active { display: block; }
+
+        /* Buttons */
+        .btn {
+            background: var(--accent);
+            color: #000;
+            border: none;
+            border-radius: 8px;
+            padding: 0.6rem 1.2rem;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s;
+            font-family: inherit;
+        }
+
+        .btn:hover { background: var(--accent-hover); box-shadow: 0 0 20px rgba(0,230,118,0.15); }
+        .btn:disabled { opacity: 0.4; cursor: not-allowed; box-shadow: none; }
+        .btn-sm { padding: 0.45rem 0.8rem; font-size: 0.8rem; }
+
+        .btn-secondary {
+            background: transparent;
+            color: var(--text);
+            border: 1px solid var(--border);
+        }
+        .btn-secondary:hover { border-color: var(--accent-border); background: var(--accent-dim); box-shadow: none; }
+
+        .btn-danger { background: var(--error); }
+        .btn-danger:hover { background: #ff6666; }
+
+        /* Form elements */
+        label { font-size: 0.75rem; color: var(--text-dim); font-weight: 400; display: block; margin-bottom: 0.25rem; }
+        label a { color: var(--accent); text-decoration: none; }
+
+        input, select, textarea {
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 0.5rem 0.65rem;
+            color: var(--text);
+            font-size: 0.85rem;
+            font-family: inherit;
+            outline: none;
+            width: 100%;
+            transition: border-color 0.15s;
+        }
+
+        input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+        textarea { resize: vertical; min-height: 50px; }
+
+        input[type="color"] {
+            width: 36px; height: 32px; padding: 2px; cursor: pointer; border-radius: 4px;
+        }
+
+        input[type="range"] { accent-color: var(--accent); }
+
+        input[type="checkbox"] { width: auto; accent-color: var(--accent); }
+
+        .form-row { display: flex; gap: 0.75rem; margin-bottom: 0.75rem; }
+        .form-row > * { flex: 1; }
+        .form-group { margin-bottom: 0.75rem; }
+
+        /* Cards */
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 1.25rem;
+            transition: border-color 0.15s;
+        }
+
+        .card:hover { border-color: var(--border-hover); }
+
+        .card h2 {
+            font-weight: 500; margin-bottom: 0.75rem;
+            color: var(--text-dim); text-transform: uppercase;
+            letter-spacing: 0.08em; font-size: 0.65rem;
+        }
+
+        /* Error */
+        .error-msg {
+            color: var(--error); font-size: 0.85rem; padding: 0.6rem 0.8rem;
+            background: rgba(255,68,68,0.08); border: 1px solid rgba(255,68,68,0.2);
+            border-radius: 6px; margin-top: 0.75rem; display: none;
+        }
+        .error-msg.active { display: block; }
+
+        /* Progress bar */
+        .progress-bar-track { background: var(--surface-2); border-radius: 4px; height: 6px; overflow: hidden; margin: 0.5rem 0; }
+        .progress-bar-fill { background: var(--accent); height: 100%; border-radius: 4px; transition: width 0.3s; width: 0%; }
+        .progress-bar-fill.complete { box-shadow: 0 0 12px rgba(0,230,118,0.3); }
+
+        /* ═══════════════════════════════════════
+           DASHBOARD VIEW
+           ═══════════════════════════════════════ */
+
+        .jobs-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+            gap: 1rem;
+        }
+
+        .job-card { cursor: pointer; position: relative; }
+        .job-card.new-video {
+            border-style: dashed;
+            border-color: var(--border-hover);
+            display: flex; align-items: center; justify-content: center;
+            min-height: 140px; flex-direction: column; gap: 0.5rem;
+        }
+        .job-card.new-video:hover { border-color: var(--accent-border); }
+        .job-card .plus { font-size: 2rem; color: var(--text-dim); }
+        .job-card .new-label { color: var(--text-dim); font-size: 0.85rem; }
+
+        .job-card-title { font-weight: 600; font-size: 0.95rem; margin-bottom: 0.35rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .job-card-meta { color: var(--text-dim); font-size: 0.75rem; line-height: 1.6; }
+        .job-card-status { display: inline-block; padding: 0.15rem 0.5rem; border-radius: 4px; font-size: 0.7rem; font-weight: 500; margin-top: 0.5rem; }
+        .job-card-status.completed { background: var(--accent-dim); color: var(--accent); border: 1px solid var(--accent-border); }
+        .job-card-status.analyzing, .job-card-status.extracting, .job-card-status.pending { background: rgba(100,181,246,0.1); color: var(--blue); border: 1px solid rgba(100,181,246,0.25); }
+        .job-card-status.failed { background: rgba(255,68,68,0.1); color: var(--error); border: 1px solid rgba(255,68,68,0.25); }
+
+        .job-card-delete {
+            position: absolute; top: 0.5rem; right: 0.5rem;
+            background: none; border: none; color: var(--text-dim); cursor: pointer;
+            font-size: 0.9rem; padding: 0.2rem; opacity: 0;
+            transition: opacity 0.15s;
+        }
+        .job-card:hover .job-card-delete { opacity: 1; }
+        .job-card-delete:hover { color: var(--error); }
+
+        /* New video modal */
+        .modal-overlay {
+            display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7);
+            z-index: 100; align-items: center; justify-content: center;
+        }
+        .modal-overlay.active { display: flex; }
+
+        .modal {
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: 12px; width: 600px; max-height: 80vh;
+            display: flex; flex-direction: column; overflow: hidden;
+        }
+
+        .modal-header {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 1rem 1.25rem; border-bottom: 1px solid var(--border);
+        }
+        .modal-header h3 { font-size: 1rem; font-weight: 600; }
+        .modal-close { background: none; border: none; color: var(--text-dim); font-size: 1.2rem; cursor: pointer; padding: 0.25rem; }
+        .modal-close:hover { color: var(--text); }
+
+        .modal-body { padding: 1.25rem; overflow-y: auto; flex: 1; }
+        .modal-footer { padding: 1rem 1.25rem; border-top: 1px solid var(--border); display: flex; gap: 0.75rem; justify-content: flex-end; }
+
+        .modal-path {
+            padding: 0.5rem 1.25rem; font-size: 0.75rem; color: var(--text-dim);
+            border-bottom: 1px solid var(--border); font-family: 'SF Mono', Menlo, monospace;
+            word-break: break-all;
+        }
+
+        .browse-item {
+            display: flex; align-items: center; gap: 0.65rem; padding: 0.5rem 1rem;
+            cursor: pointer; transition: background 0.1s; border-bottom: 1px solid var(--border);
+        }
+        .browse-item:hover { background: var(--surface-2); }
+        .browse-item-icon { font-size: 1rem; width: 1.25rem; text-align: center; }
+        .browse-item-name { flex: 1; font-size: 0.85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .browse-item-size { font-size: 0.7rem; color: var(--text-dim); }
+        .browse-item.file .browse-item-name { color: var(--accent); }
+        .browse-item.parent .browse-item-name { color: var(--text-dim); }
+        .browse-empty { padding: 1.5rem; text-align: center; color: var(--text-dim); font-size: 0.8rem; }
+
+        /* ═══════════════════════════════════════
+           EDITOR VIEW
+           ═══════════════════════════════════════ */
+
+        .editor-layout {
+            display: flex; flex-direction: column;
+            gap: 1rem;
+            min-height: calc(100vh - 120px);
+        }
+
+        .editor-back {
+            color: var(--text-dim); font-size: 0.8rem; cursor: pointer;
+            margin-bottom: 1rem; display: inline-block;
+        }
+        .editor-back:hover { color: var(--accent); }
+
+        /* Horizontal clip strip */
+        .clip-strip-wrap {
+            position: relative;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 0.5rem;
+        }
+
+        .clip-strip {
+            display: flex; gap: 0.6rem;
+            overflow-x: auto; scroll-behavior: smooth;
+            scrollbar-width: thin;
+            padding: 0.25rem 2.5rem;
+        }
+        .clip-strip::-webkit-scrollbar { height: 6px; }
+        .clip-strip::-webkit-scrollbar-track { background: transparent; }
+        .clip-strip::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+        .clip-strip-btn {
+            position: absolute; top: 50%; transform: translateY(-50%);
+            background: var(--surface-2); border: 1px solid var(--border);
+            color: var(--text); width: 32px; height: 32px;
+            border-radius: 50%; cursor: pointer; z-index: 10;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.1rem; transition: all 0.15s;
+        }
+        .clip-strip-btn:hover { border-color: var(--accent); color: var(--accent); }
+        .clip-strip-btn.left { left: 0.5rem; }
+        .clip-strip-btn.right { right: 0.5rem; }
+
+        .clip-thumb {
+            background: var(--surface-2); border: 1px solid var(--border);
+            border-radius: 8px; padding: 0.4rem; cursor: pointer;
+            transition: border-color 0.15s;
+            flex: 0 0 180px; width: 180px;
+            box-sizing: border-box;
+            display: flex; flex-direction: column;
+        }
+        .clip-thumb:hover { border-color: var(--border-hover); }
+        .clip-thumb.active { border-color: var(--accent); background: var(--accent-dim); }
+
+        .clip-thumb img {
+            width: 100%; border-radius: 4px; display: block;
+            aspect-ratio: 16/9; object-fit: cover; background: var(--surface);
+        }
+
+        .clip-thumb-title {
+            font-size: 0.7rem; font-weight: 500; margin-top: 0.35rem;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+            min-width: 0;
+        }
+        .clip-thumb-time { font-size: 0.65rem; color: var(--text-dim); }
+
+        /* Editor body: video + settings side by side */
+        .editor-body {
+            display: grid;
+            grid-template-columns: minmax(0, 1.4fr) minmax(340px, 1fr);
+            gap: 1rem;
+            align-items: start;
+        }
+
+        /* Tabs */
+        .tabs {
+            display: flex; gap: 0.25rem; border-bottom: 1px solid var(--border);
+            margin-bottom: 1rem;
+        }
+        .tab-btn {
+            background: none; border: none; color: var(--text-dim);
+            padding: 0.6rem 0.9rem; font-size: 0.8rem; font-weight: 500;
+            cursor: pointer; border-bottom: 2px solid transparent;
+            transition: all 0.15s; font-family: inherit;
+            margin-bottom: -1px;
+        }
+        .tab-btn:hover { color: var(--text); }
+        .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        /* Watermark position picker */
+        .position-grid {
+            display: grid; grid-template-columns: 1fr 1fr;
+            gap: 0.4rem; margin-bottom: 0.75rem;
+        }
+        .position-btn {
+            padding: 0.5rem; border: 1px solid var(--border); border-radius: 6px;
+            background: var(--surface-2); color: var(--text-dim); font-size: 0.75rem;
+            cursor: pointer; transition: all 0.15s; font-family: inherit;
+        }
+        .position-btn:hover { border-color: var(--border-hover); }
+        .position-btn.active { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
+
+        /* Main editor area */
+        .editor-main { display: flex; flex-direction: column; gap: 1rem; }
+
+        .editor-preview {
+            position: relative;
+            width: 100%;
+        }
+        .preview-frame-wrap {
+            display: flex;
+            justify-content: center;
+        }
+        .preview-frame {
+            position: relative;
+            background: #000;
+            border-radius: 8px;
+            overflow: hidden;
+            /* dimensions set via JS to handle aspect ratio + height cap reliably */
+        }
+        .preview-frame video {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            object-fit: cover;
+            display: block; background: #000;
+        }
+        /* Caption overlay */
+        .preview-caption {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            text-align: center;
+            font-weight: 700;
+            line-height: 1.2;
+            white-space: nowrap;
+            pointer-events: none;
+            text-shadow:
+                2px 2px 0 rgba(0,0,0,0.8), -2px 2px 0 rgba(0,0,0,0.8),
+                2px -2px 0 rgba(0,0,0,0.8), -2px -2px 0 rgba(0,0,0,0.8),
+                0 3px 0 rgba(0,0,0,0.8), 3px 0 0 rgba(0,0,0,0.8);
+        }
+        /* Watermark overlay */
+        .preview-watermark {
+            position: absolute;
+            pointer-events: none;
+            object-fit: contain;
+        }
+
+        .editor-settings {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        .settings-section { }
+        .settings-section h3 { font-size: 0.7rem; font-weight: 500; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 0.6rem; }
+
+        /* Ratio toggle */
+        .ratio-group { display: flex; gap: 0.5rem; margin-bottom: 0.75rem; }
+        .ratio-btn {
+            flex: 1; padding: 0.5rem; border: 1px solid var(--border); border-radius: 6px;
+            background: var(--surface-2); color: var(--text-dim); font-size: 0.8rem;
+            font-weight: 500; cursor: pointer; text-align: center; transition: all 0.15s;
+            font-family: inherit;
+        }
+        .ratio-btn:hover { border-color: var(--border-hover); }
+        .ratio-btn.active { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
+
+        /* Color input row */
+        .color-row { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; }
+        .color-row label { margin-bottom: 0; flex: 1; }
+
+        /* Actions */
+        .editor-actions { display: flex; gap: 0.75rem; margin-top: 0.5rem; }
+
+        .render-status { font-size: 0.8rem; color: var(--text-dim); margin-top: 0.5rem; }
+        .render-status.done { color: var(--accent); }
+
+        /* Clip info bar */
+        .clip-info-bar {
+            display: flex; align-items: center; gap: 1rem;
+            padding: 0.6rem 0; border-bottom: 1px solid var(--border);
+            margin-bottom: 0.75rem;
+        }
+        .clip-info-bar h3 { font-size: 1rem; font-weight: 600; flex: 1; }
+        .clip-info-bar .clip-meta { font-size: 0.75rem; color: var(--text-dim); }
+
+        /* Speaker controls */
+        .speakers-list { display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.5rem; }
+        .speaker-row {
+            display: flex; align-items: center; gap: 0.5rem;
+            padding: 0.4rem 0.6rem; background: var(--surface-2);
+            border: 1px solid var(--border); border-radius: 6px;
+        }
+        .speaker-row.disabled { opacity: 0.4; }
+        .speaker-row input[type="color"] { width: 28px; height: 24px; padding: 1px; }
+        .speaker-row .speaker-name { flex: 1; font-size: 0.8rem; font-weight: 500; }
+        .speaker-row .speaker-sample { font-size: 0.7rem; color: var(--text-dim); font-style: italic; }
+        .speaker-row input[type="checkbox"] { margin: 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header onclick="navigateTo('')">
+            <h1>OpenReel</h1>
+            <span>Stream Highlight Extractor</span>
+        </header>
+
+        <!-- ═══ DASHBOARD ═══ -->
+        <div id="dashboardView" class="view active">
+            <div class="jobs-grid" id="jobsGrid"></div>
+        </div>
+
+        <!-- ═══ EDITOR ═══ -->
+        <div id="editorView" class="view">
+            <span class="editor-back" onclick="navigateTo('')">&larr; Dashboard</span>
+
+            <div class="editor-layout">
+                <!-- Horizontal clip strip -->
+                <div class="clip-strip-wrap">
+                    <button class="clip-strip-btn left" onclick="scrollClipStrip(-1)">‹</button>
+                    <div class="clip-strip" id="clipStrip"></div>
+                    <button class="clip-strip-btn right" onclick="scrollClipStrip(1)">›</button>
+                </div>
+
+                <div class="clip-info-bar" id="clipInfoBar"></div>
+
+                <div class="editor-body">
+                    <div>
+                        <div class="editor-preview">
+                            <div class="preview-frame-wrap">
+                                <div class="preview-frame" id="previewFrame">
+                                    <video id="editorVideo" controls preload="metadata"></video>
+                                    <div class="preview-caption" id="previewCaption" style="display:none"></div>
+                                    <img class="preview-watermark" id="previewWatermark" style="display:none">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Render actions: under the video, matches its width -->
+                        <div class="card" style="padding:1rem 1.25rem;margin-top:1rem">
+                            <div style="display:flex;gap:0.75rem;align-items:center">
+                                <button class="btn" id="renderBtn" onclick="renderClip()">Render Clip</button>
+                                <button class="btn btn-secondary" onclick="applyToAll()">Apply to All</button>
+                                <div class="render-status" id="renderStatus" style="flex:1;margin:0"></div>
+                            </div>
+                            <div id="clipDetails" style="font-size:0.75rem; color:var(--text-dim); line-height:1.5; margin-top:0.75rem"></div>
+                            <div id="previousRenders" style="margin-top:0.75rem"></div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <!-- Tab bar -->
+                        <div class="tabs">
+                            <button class="tab-btn active" data-tab="aspect" onclick="setTab('aspect')">Aspect</button>
+                            <button class="tab-btn" data-tab="captions" onclick="setTab('captions')">Captions</button>
+                            <button class="tab-btn" data-tab="intro-outro" onclick="setTab('intro-outro')">Intro / Outro</button>
+                            <button class="tab-btn" data-tab="watermark" onclick="setTab('watermark')">Watermark</button>
+                        </div>
+
+                        <!-- Aspect Ratio tab -->
+                        <div class="tab-content active" data-tab="aspect">
+                            <div class="ratio-group">
+                                <button class="ratio-btn active" data-ratio="16:9" onclick="setRatio(this)">16:9</button>
+                                <button class="ratio-btn" data-ratio="9:16" onclick="setRatio(this)">9:16</button>
+                                <button class="ratio-btn" data-ratio="1:1" onclick="setRatio(this)">1:1</button>
+                            </div>
+                            <p style="font-size:0.75rem;color:var(--text-dim);margin-top:0.5rem">Center-crops the video to the selected ratio.</p>
+                        </div>
+
+                        <!-- Captions tab -->
+                        <div class="tab-content" data-tab="captions">
+                            <div class="form-group">
+                                <label><input type="checkbox" id="capEnabled"> Enable captions</label>
+                            </div>
+                            <div id="captionSettings" style="display:none">
+                                <div class="form-group">
+                                    <label>Font</label>
+                                    <select id="capFont"></select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Size</label>
+                                    <input type="range" id="capSize" min="0.03" max="0.1" step="0.005" value="0.055">
+                                </div>
+                                <div class="color-row">
+                                    <label>Text</label>
+                                    <input type="color" id="capTextColor" value="#ffffff">
+                                </div>
+                                <div class="color-row">
+                                    <label>Highlight</label>
+                                    <input type="color" id="capHighlightColor" value="#00e676">
+                                </div>
+                                <div class="color-row">
+                                    <label>Shadow</label>
+                                    <input type="color" id="capShadowColor" value="#000000">
+                                </div>
+                                <div class="form-group">
+                                    <label>Position</label>
+                                    <input type="range" id="capPosition" min="0.3" max="0.9" step="0.01" value="0.72">
+                                </div>
+                                <div class="form-group">
+                                    <label>Style</label>
+                                    <select id="capStyle">
+                                        <option value="opus">Opus</option>
+                                        <option value="karaoke">Karaoke</option>
+                                        <option value="subtitle">Subtitle</option>
+                                        <option value="minimal">Minimal</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label><input type="checkbox" id="capCensor"> Censor profanity</label>
+                                </div>
+                                <div class="form-group">
+                                    <label><input type="checkbox" id="capDiarize" onchange="onDiarizeToggle()"> Speaker diarization</label>
+                                </div>
+                                <div id="speakersPanel" style="display:none">
+                                    <div class="form-group">
+                                        <label>HuggingFace Token <a href="https://hf.co/settings/tokens" target="_blank">Get a token</a></label>
+                                        <input type="password" id="capHfToken" placeholder="Required for diarization. Or set OPENREEL_HF_TOKEN in .env">
+                                    </div>
+                                    <button class="btn btn-sm btn-secondary" id="detectSpeakersBtn" onclick="detectSpeakers()" style="width:100%">Detect Speakers</button>
+                                    <div class="speakers-list" id="speakersList"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Intro / Outro tab -->
+                        <div class="tab-content" data-tab="intro-outro">
+                            <div class="form-group">
+                                <label>Intro</label>
+                                <div style="display:flex;gap:0.5rem;align-items:center">
+                                    <button class="btn btn-sm btn-secondary" onclick="pickIntroOutro('intro')">Browse</button>
+                                    <span id="introName" style="font-size:0.75rem;color:var(--text-dim);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">none</span>
+                                    <button class="btn btn-sm btn-secondary" id="introClear" onclick="clearIntroOutro('intro')" style="display:none">×</button>
+                                </div>
+                                <div id="introWarn" style="font-size:0.7rem;margin-top:0.25rem"></div>
+                            </div>
+                            <div class="form-group">
+                                <label>Outro</label>
+                                <div style="display:flex;gap:0.5rem;align-items:center">
+                                    <button class="btn btn-sm btn-secondary" onclick="pickIntroOutro('outro')">Browse</button>
+                                    <span id="outroName" style="font-size:0.75rem;color:var(--text-dim);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">none</span>
+                                    <button class="btn btn-sm btn-secondary" id="outroClear" onclick="clearIntroOutro('outro')" style="display:none">×</button>
+                                </div>
+                                <div id="outroWarn" style="font-size:0.7rem;margin-top:0.25rem"></div>
+                            </div>
+                            <button class="btn btn-sm btn-secondary" onclick="applyIntroOutroDefaults()" style="width:100%;margin-top:0.25rem">Apply as session default</button>
+                        </div>
+
+                        <!-- Watermark tab -->
+                        <div class="tab-content" data-tab="watermark">
+                            <div class="form-group">
+                                <label><input type="checkbox" id="wmEnabled"> Enable watermark</label>
+                            </div>
+                            <div id="watermarkSettings" style="display:none">
+                                <div class="form-group">
+                                    <label>Image</label>
+                                    <div style="display:flex;gap:0.5rem;align-items:center">
+                                        <button class="btn btn-sm btn-secondary" onclick="pickWatermark()">Browse</button>
+                                        <span id="wmName" style="font-size:0.75rem;color:var(--text-dim);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">none</span>
+                                        <button class="btn btn-sm btn-secondary" id="wmClear" onclick="clearWatermark()" style="display:none">×</button>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label>Position</label>
+                                    <div class="position-grid">
+                                        <button class="position-btn" data-pos="top-left" onclick="setWatermarkPosition(this)">Top Left</button>
+                                        <button class="position-btn" data-pos="top-right" onclick="setWatermarkPosition(this)">Top Right</button>
+                                        <button class="position-btn" data-pos="bottom-left" onclick="setWatermarkPosition(this)">Bottom Left</button>
+                                        <button class="position-btn active" data-pos="bottom-right" onclick="setWatermarkPosition(this)">Bottom Right</button>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label>Opacity <span id="wmOpacityVal">85%</span></label>
+                                    <input type="range" id="wmOpacity" min="0.1" max="1" step="0.05" value="0.85" oninput="document.getElementById('wmOpacityVal').textContent = Math.round(this.value * 100) + '%'">
+                                </div>
+                                <div class="form-group">
+                                    <label>Size <span id="wmSizeVal">12%</span></label>
+                                    <input type="range" id="wmSize" min="0.05" max="0.4" step="0.01" value="0.12" oninput="document.getElementById('wmSizeVal').textContent = Math.round(this.value * 100) + '%'">
+                                </div>
+                                <div class="form-group">
+                                    <label>Margin (px)</label>
+                                    <input type="number" id="wmMargin" value="24" min="0" max="200">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ NEW VIDEO MODAL ═══ -->
+    <div class="modal-overlay" id="newVideoModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>New Video</h3>
+                <button class="modal-close" onclick="closeModal('newVideoModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Video File</label>
+                    <div style="display:flex;gap:0.5rem">
+                        <input type="text" id="nvInputPath" placeholder="/path/to/stream.mp4" readonly style="flex:1">
+                        <button class="btn btn-sm btn-secondary" onclick="openBrowser()">Browse</button>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div><label>Preset</label><select id="nvPreset">
+                        <option value="general">General</option><option value="gaming">Gaming</option>
+                        <option value="irl">IRL</option><option value="music">Music</option>
+                        <option value="sports">Sports</option><option value="educational">Educational</option>
+                    </select></div>
+                    <div><label>Model</label><select id="nvModel">
+                        <option value="gemini-2.5-flash">Flash</option><option value="gemini-2.5-pro">Pro</option>
+                        <option value="gemini-2.0-flash-lite">Flash Lite</option>
+                    </select></div>
+                </div>
+                <div class="form-row">
+                    <div><label>Clips/Hour</label><input type="number" id="nvClipsPerHour" value="2.5" step="0.5" min="0.5"></div>
+                    <div><label>Min Length (sec)</label><input type="number" id="nvMinClip" value="15" min="5"></div>
+                    <div><label>Margin (sec)</label><input type="number" id="nvMargin" value="3" step="0.5" min="0"></div>
+                </div>
+                <div class="form-row">
+                    <div><label>Analysis Mode</label><select id="nvAnalysis">
+                        <option value="fast">Fast</option><option value="detailed">Detailed</option>
+                    </select></div>
+                </div>
+                <div class="form-group">
+                    <label>Gemini API Key (optional) <a href="https://aistudio.google.com/api-keys" target="_blank">Get a key</a></label>
+                    <input type="password" id="nvApiKey" placeholder="Uses .env if blank">
+                </div>
+                <div class="form-group">
+                    <label>Custom Criteria (optional)</label>
+                    <textarea id="nvCriteria" placeholder="e.g., Look for funny moments..."></textarea>
+                </div>
+                <div class="error-msg" id="nvError"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('newVideoModal')">Cancel</button>
+                <button class="btn" id="nvStartBtn" onclick="submitNewVideo()">Start Analysis</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ FILE BROWSER MODAL ═══ -->
+    <div class="modal-overlay" id="browserModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>Select Video File</h3>
+                <button class="modal-close" onclick="closeModal('browserModal')">&times;</button>
+            </div>
+            <div class="modal-path" id="browserPath">~</div>
+            <div class="modal-body" id="browserBody"></div>
+        </div>
+    </div>
+
+    <script>
+    /* ═══════════════════════════════════════
+       STATE
+       ═══════════════════════════════════════ */
+
+    let currentView = 'dashboard';
+    let jobs = [];
+    let pollTimers = {};
+    let editorJobId = null;
+    let editorClips = [];
+    let editorHighlights = [];
+    let activeClipIndex = -1;
+    let fonts = [];
+    let detectedSpeakers = {};  // {clip_index: [SpeakerInfo, ...]}
+    let speakerSettings = {};   // {clip_index: {speaker_id: {color, enabled}}}
+    let clipIntroOutro = {};    // {clip_index: {intro: path, outro: path}}
+    let sessionDefaults = { intro_path: null, outro_path: null };
+    let diarizationAvailable = false;
+    const DEFAULT_SPEAKER_COLORS = ['#00e676', '#64b5f6', '#ffb74d', '#ce93d8', '#f06292', '#4dd0e1', '#fff176', '#81c784'];
+
+    /* ═══════════════════════════════════════
+       ROUTING
+       ═══════════════════════════════════════ */
+
+    function navigateTo(hash) {
+        window.location.hash = hash;
+    }
+
+    function handleRoute() {
+        const hash = window.location.hash.slice(1);
+        document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+
+        if (hash.startsWith('session/')) {
+            const jobId = hash.split('/')[1];
+            document.getElementById('editorView').classList.add('active');
+            currentView = 'editor';
+            openEditor(jobId);
+        } else {
+            document.getElementById('dashboardView').classList.add('active');
+            currentView = 'dashboard';
+            loadDashboard();
+        }
+    }
+
+    window.addEventListener('hashchange', handleRoute);
+
+    /* ═══════════════════════════════════════
+       DASHBOARD
+       ═══════════════════════════════════════ */
+
+    async function loadDashboard() {
+        try {
+            const res = await fetch('/jobs');
+            jobs = await res.json();
+        } catch(e) { jobs = []; }
+
+        const grid = document.getElementById('jobsGrid');
+        let html = `<div class="card job-card new-video" onclick="openModal('newVideoModal')">
+            <span class="plus">+</span>
+            <span class="new-label">New Video</span>
+        </div>`;
+
+        // Sort: in-progress first, then by job_id descending
+        const sorted = [...jobs].sort((a, b) => {
+            const aActive = ['pending','analyzing','extracting'].includes(a.status);
+            const bActive = ['pending','analyzing','extracting'].includes(b.status);
+            if (aActive !== bActive) return bActive - aActive;
+            return b.job_id.localeCompare(a.job_id);
+        });
+
+        for (const job of sorted) {
+            const name = job.progress?.current_step ? extractFilename(job) : job.job_id;
+            const clipCount = job.highlights?.length || 0;
+            const p = job.progress || {};
+
+            let statusClass = job.status;
+            let statusText = job.status;
+
+            let progressHtml = '';
+            if (['analyzing','extracting','pending'].includes(job.status)) {
+                let pct = 0;
+                if (job.status === 'extracting' && p.clips_total > 0) {
+                    pct = (p.clips_extracted / p.clips_total) * 100;
+                } else if (p.chunks_total > 0) {
+                    pct = (p.chunks_completed / p.chunks_total) * 100;
+                }
+                progressHtml = `<div class="progress-bar-track"><div class="progress-bar-fill" style="width:${pct}%"></div></div>`;
+                startPolling(job.job_id);
+            }
+
+            html += `<div class="card job-card" onclick="navigateTo('session/${job.job_id}')">
+                <button class="job-card-delete" onclick="event.stopPropagation(); deleteJob('${job.job_id}')">&times;</button>
+                <div class="job-card-title">${escapeHtml(name)}</div>
+                <div class="job-card-meta">
+                    ${clipCount > 0 ? clipCount + ' clips' : ''}
+                    ${p.current_step ? '<br>' + escapeHtml(p.current_step.substring(0, 60)) : ''}
+                </div>
+                ${progressHtml}
+                <span class="job-card-status ${statusClass}">${statusText}</span>
+            </div>`;
+        }
+
+        grid.innerHTML = html;
+    }
+
+    function extractFilename(job) {
+        // Try to extract filename from job data
+        if (job.clips?.length > 0) {
+            const p = job.clips[0].output_path;
+            const parts = p.split('/');
+            const dir = parts[parts.length - 2];
+            return dir || job.job_id;
+        }
+        return job.job_id;
+    }
+
+    function startPolling(jobId) {
+        if (pollTimers[jobId]) return;
+        pollTimers[jobId] = setInterval(async () => {
+            try {
+                const res = await fetch(`/jobs/${jobId}`);
+                const data = await res.json();
+                if (currentView === 'dashboard') updateJobCard(jobId, data);
+                if (data.status === 'completed' || data.status === 'failed') {
+                    clearInterval(pollTimers[jobId]);
+                    delete pollTimers[jobId];
+                    if (currentView === 'dashboard') loadDashboard();
+                }
+            } catch(e) {}
+        }, 2000);
+    }
+
+    function updateJobCard(jobId, data) {
+        const card = document.querySelector(`.job-card[onclick*="${jobId}"]`);
+        if (!card) return;
+
+        const p = data.progress || {};
+
+        // Update status badge
+        const badge = card.querySelector('.job-card-status');
+        if (badge) {
+            badge.className = `job-card-status ${data.status}`;
+            badge.textContent = data.status;
+        }
+
+        // Update current step text
+        const meta = card.querySelector('.job-card-meta');
+        if (meta && p.current_step) {
+            const clipCount = data.highlights?.length || 0;
+            meta.innerHTML = `${clipCount > 0 ? clipCount + ' clips' : ''}<br>${escapeHtml(p.current_step.substring(0, 60))}`;
+        }
+
+        // Update progress bar
+        let pct = 0;
+        if (data.status === 'extracting' && p.clips_total > 0) {
+            pct = (p.clips_extracted / p.clips_total) * 100;
+        } else if (p.chunks_total > 0) {
+            pct = (p.chunks_completed / p.chunks_total) * 100;
+        }
+        const fill = card.querySelector('.progress-bar-fill');
+        if (fill) {
+            fill.style.width = `${pct}%`;
+            if (data.status === 'completed') fill.classList.add('complete');
+        }
+    }
+
+    async function deleteJob(jobId) {
+        if (!confirm('Delete this job?')) return;
+        await fetch(`/jobs/${jobId}`, { method: 'DELETE' });
+        loadDashboard();
+    }
+
+    /* ═══════════════════════════════════════
+       NEW VIDEO
+       ═══════════════════════════════════════ */
+
+    async function submitNewVideo() {
+        const path = document.getElementById('nvInputPath').value.trim();
+        if (!path) { showNvError('Please select a video file.'); return; }
+        hideNvError();
+
+        const body = {
+            input_path: path,
+            preset: document.getElementById('nvPreset').value,
+            gemini_model: document.getElementById('nvModel').value,
+            target_clips_per_hour: parseFloat(document.getElementById('nvClipsPerHour').value),
+            min_clip_seconds: parseFloat(document.getElementById('nvMinClip').value),
+            margin_seconds: parseFloat(document.getElementById('nvMargin').value),
+            analysis_mode: document.getElementById('nvAnalysis').value,
+        };
+
+        const criteria = document.getElementById('nvCriteria').value.trim();
+        if (criteria) body.criteria = criteria;
+        const apiKey = document.getElementById('nvApiKey').value.trim();
+        if (apiKey) body.api_key = apiKey;
+
+        document.getElementById('nvStartBtn').disabled = true;
+
+        try {
+            const res = await fetch('/jobs', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body),
+            });
+            if (!res.ok) { const e = await res.json(); throw new Error(e.detail); }
+
+            closeModal('newVideoModal');
+            document.getElementById('nvStartBtn').disabled = false;
+            loadDashboard();
+        } catch(e) {
+            showNvError(e.message);
+            document.getElementById('nvStartBtn').disabled = false;
+        }
+    }
+
+    function showNvError(msg) { const el = document.getElementById('nvError'); el.textContent = msg; el.classList.add('active'); }
+    function hideNvError() { document.getElementById('nvError').classList.remove('active'); }
+
+    /* ═══════════════════════════════════════
+       FILE BROWSER
+       ═══════════════════════════════════════ */
+
+    let browserCallback = null;
+    function openBrowser(callback) {
+        browserCallback = callback || null;
+        openModal('browserModal');
+        browseTo('~');
+    }
+
+    async function browseTo(path) {
+        const body = document.getElementById('browserBody');
+        body.innerHTML = '<div class="browse-empty">Loading...</div>';
+        try {
+            const res = await fetch(`/browse?path=${encodeURIComponent(path)}`);
+            if (!res.ok) { const e = await res.json(); body.innerHTML = `<div class="browse-empty">${e.detail}</div>`; return; }
+            const data = await res.json();
+            document.getElementById('browserPath').textContent = data.current;
+
+            let html = '';
+            if (data.parent) {
+                html += `<div class="browse-item parent" onclick="browseTo('${escapeAttr(data.parent)}')">
+                    <span class="browse-item-icon">..</span><span class="browse-item-name">Parent Directory</span>
+                </div>`;
+            }
+            if (data.items.length === 0) html += '<div class="browse-empty">No directories or MP4 files</div>';
+            data.items.forEach(item => {
+                if (item.type === 'directory') {
+                    html += `<div class="browse-item dir" onclick="browseTo('${escapeAttr(item.path)}')">
+                        <span class="browse-item-icon">\uD83D\uDCC1</span><span class="browse-item-name">${escapeHtml(item.name)}</span>
+                    </div>`;
+                } else {
+                    html += `<div class="browse-item file" onclick="selectFile('${escapeAttr(item.path)}')">
+                        <span class="browse-item-icon">\uD83C\uDFAC</span><span class="browse-item-name">${escapeHtml(item.name)}</span>
+                        <span class="browse-item-size">${formatSize(item.size_mb)}</span>
+                    </div>`;
+                }
+            });
+            body.innerHTML = html;
+        } catch(e) { body.innerHTML = `<div class="browse-empty">${e.message}</div>`; }
+    }
+
+    function selectFile(path) {
+        if (browserCallback) {
+            browserCallback(path);
+            browserCallback = null;
+        } else {
+            document.getElementById('nvInputPath').value = path;
+        }
+        closeModal('browserModal');
+    }
+
+    /* ═══════════════════════════════════════
+       EDITOR
+       ═══════════════════════════════════════ */
+
+    async function openEditor(jobId) {
+        editorJobId = jobId;
+
+        try {
+            const res = await fetch(`/jobs/${jobId}`);
+            const job = await res.json();
+
+            if (job.status !== 'completed') {
+                alert('Job is not yet completed.');
+                navigateTo('');
+                return;
+            }
+
+            editorHighlights = job.highlights || [];
+            editorClips = job.clips || [];
+
+            // Check diarization availability
+            try {
+                const hRes = await fetch('/health');
+                const health = await hRes.json();
+                diarizationAvailable = health.diarization === 'ok';
+            } catch(e) { diarizationAvailable = false; }
+
+            // Reset per-session state
+            clipIntroOutro = {};
+            sessionDefaults = { intro_path: null, outro_path: null };
+
+            // Load session defaults from server
+            try {
+                const dRes = await fetch(`/jobs/${jobId}/session-defaults`);
+                if (dRes.ok) {
+                    const d = await dRes.json();
+                    sessionDefaults.intro_path = d.intro_path || null;
+                    sessionDefaults.outro_path = d.outro_path || null;
+                }
+            } catch(e) {}
+
+            // Load fonts
+            if (fonts.length === 0) {
+                try {
+                    const fRes = await fetch('/fonts');
+                    fonts = await fRes.json();
+                } catch(e) { fonts = []; }
+            }
+
+            // Populate font dropdown (curated list)
+            const fontSelect = document.getElementById('capFont');
+            fontSelect.innerHTML = fonts.map(f =>
+                `<option value="${escapeAttr(f.path)}">${escapeHtml(f.name)}</option>`
+            ).join('');
+
+            // Build sidebar
+            buildClipStrip();
+
+            // Select first clip
+            if (editorHighlights.length > 0) selectClip(0);
+
+            // Toggle caption settings visibility
+            document.getElementById('capEnabled').addEventListener('change', function() {
+                document.getElementById('captionSettings').style.display = this.checked ? 'block' : 'none';
+                updatePreview();
+            });
+            document.getElementById('wmEnabled').addEventListener('change', function() {
+                document.getElementById('watermarkSettings').style.display = this.checked ? 'block' : 'none';
+                updatePreview();
+            });
+
+            // Attach live preview listeners and initial render
+            attachPreviewListeners();
+            // Wait one tick so the layout settles
+            setTimeout(updatePreview, 100);
+
+        } catch(e) {
+            alert('Failed to load job: ' + e.message);
+            navigateTo('');
+        }
+    }
+
+    function buildClipStrip() {
+        const strip = document.getElementById('clipStrip');
+        let html = '';
+        for (const h of editorHighlights) {
+            const clip = editorClips.find(c => c.highlight.index === h.index);
+            const thumbUrl = clip ? `/jobs/${editorJobId}/thumbnail/${h.index}` : '';
+            html += `<div class="clip-thumb" id="thumb-${h.index}" onclick="selectClip(${h.index})">
+                ${thumbUrl ? `<img src="${thumbUrl}" loading="lazy" alt="">` : '<div style="aspect-ratio:16/9;background:var(--surface);border-radius:4px"></div>'}
+                <div class="clip-thumb-title">${escapeHtml(h.title)}</div>
+                <div class="clip-thumb-time">${formatTime(h.start_seconds)}</div>
+            </div>`;
+        }
+        strip.innerHTML = html;
+    }
+
+    function scrollClipStrip(direction) {
+        const strip = document.getElementById('clipStrip');
+        strip.scrollBy({ left: direction * 400, behavior: 'smooth' });
+    }
+
+    function setTab(tabName) {
+        document.querySelectorAll('.tab-btn').forEach(b => {
+            b.classList.toggle('active', b.dataset.tab === tabName);
+        });
+        document.querySelectorAll('.tab-content').forEach(c => {
+            c.classList.toggle('active', c.dataset.tab === tabName);
+        });
+    }
+
+    /* ── Live Preview Overlays ── */
+
+    function updatePreview() {
+        updatePreviewAspect();
+        updatePreviewCaption();
+        updatePreviewWatermark();
+    }
+
+    function updatePreviewAspect() {
+        const frame = document.getElementById('previewFrame');
+        if (!frame) return;
+        const wrap = frame.parentElement;
+        if (!wrap) return;
+
+        const [w, h] = getActiveRatio().split(':').map(Number);
+        const aspect = w / h;
+
+        const availableWidth = wrap.clientWidth;
+        const maxHeight = Math.min(480, window.innerHeight * 0.55);
+
+        // Try fitting by width; if too tall, fit by height instead
+        let width = availableWidth;
+        let height = width / aspect;
+        if (height > maxHeight) {
+            height = maxHeight;
+            width = height * aspect;
+        }
+
+        frame.style.width = `${width}px`;
+        frame.style.height = `${height}px`;
+    }
+
+    function updatePreviewCaption() {
+        const el = document.getElementById('previewCaption');
+        if (!el) return;
+        const enabled = document.getElementById('capEnabled').checked;
+        if (!enabled) { el.style.display = 'none'; return; }
+
+        el.style.display = 'block';
+
+        const fontSize = parseFloat(document.getElementById('capSize').value);
+        const position = parseFloat(document.getElementById('capPosition').value);
+        const textColor = document.getElementById('capTextColor').value;
+        const highlightColor = document.getElementById('capHighlightColor').value;
+        const shadowColor = document.getElementById('capShadowColor').value;
+        const fontSelect = document.getElementById('capFont');
+        const fontName = fontSelect.options[fontSelect.selectedIndex]?.text || 'sans-serif';
+        const style = document.getElementById('capStyle').value;
+        const censor = document.getElementById('capCensor').checked;
+
+        const frame = document.getElementById('previewFrame');
+        const frameHeight = frame.clientHeight;
+        const px = Math.max(12, fontSize * frameHeight);
+
+        el.style.fontSize = `${px}px`;
+        el.style.top = `${position * 100}%`;
+        el.style.fontFamily = `"${fontName}", -apple-system, sans-serif`;
+
+        // Build preview text based on style, with profanity censor on last word
+        const lastWord = censor ? '****' : 'Text';
+
+        if (style === 'opus') {
+            // Opus: word-by-word pop, highlighted word is accent color
+            el.innerHTML = `<span style="color:${textColor}">Caption </span><span style="color:${highlightColor}">${lastWord}</span>`;
+        } else if (style === 'karaoke') {
+            // Karaoke: all words visible, current word highlighted
+            el.innerHTML = `<span style="color:${textColor}">Sample </span><span style="color:${highlightColor}">Caption</span><span style="color:${textColor}"> ${lastWord}</span>`;
+        } else if (style === 'subtitle') {
+            // Subtitle: full line, no highlight
+            el.innerHTML = `<span style="color:${textColor}">Sample Caption ${lastWord}</span>`;
+            el.style.fontSize = `${px * 0.7}px`;
+        } else if (style === 'minimal') {
+            // Minimal: single word, text color only
+            el.innerHTML = `<span style="color:${textColor}">${lastWord}</span>`;
+        }
+
+        const sc = shadowColor;
+        if (style === 'subtitle') {
+            el.style.textShadow = `1px 1px 3px ${sc}`;
+        } else {
+            el.style.textShadow =
+                `2px 2px 0 ${sc}, -2px 2px 0 ${sc},` +
+                `2px -2px 0 ${sc}, -2px -2px 0 ${sc},` +
+                `0 3px 0 ${sc}, 3px 0 0 ${sc}`;
+        }
+    }
+
+    function updatePreviewWatermark() {
+        const el = document.getElementById('previewWatermark');
+        if (!el) return;
+        const enabled = document.getElementById('wmEnabled').checked;
+        const path = document.getElementById('wmName').dataset.path || '';
+        if (!enabled || !path) { el.style.display = 'none'; return; }
+
+        el.style.display = 'block';
+        el.src = `/asset?path=${encodeURIComponent(path)}`;
+
+        const opacity = parseFloat(document.getElementById('wmOpacity').value);
+        const sizeRatio = parseFloat(document.getElementById('wmSize').value);
+        const margin = parseInt(document.getElementById('wmMargin').value, 10) || 0;
+        const posBtn = document.querySelector('.position-btn.active');
+        const position = posBtn ? posBtn.dataset.pos : 'bottom-right';
+
+        const frame = document.getElementById('previewFrame');
+        const frameWidth = frame.clientWidth;
+        // Scale margin to preview size (assume actual is target output width)
+        const previewMargin = margin * (frameWidth / 1920);
+
+        el.style.opacity = opacity;
+        el.style.width = `${sizeRatio * 100}%`;
+        el.style.height = 'auto';
+
+        // Reset all positions
+        el.style.top = el.style.bottom = el.style.left = el.style.right = '';
+
+        if (position.startsWith('top')) el.style.top = `${previewMargin}px`;
+        else el.style.bottom = `${previewMargin}px`;
+        if (position.endsWith('left')) el.style.left = `${previewMargin}px`;
+        else el.style.right = `${previewMargin}px`;
+    }
+
+    function attachPreviewListeners() {
+        const ids = [
+            'capEnabled', 'capFont', 'capSize', 'capPosition',
+            'capTextColor', 'capHighlightColor', 'capShadowColor',
+            'capStyle', 'capCensor', 'capDiarize',
+            'wmEnabled', 'wmOpacity', 'wmSize', 'wmMargin',
+        ];
+        for (const id of ids) {
+            const el = document.getElementById(id);
+            if (el && !el.dataset.previewWired) {
+                el.addEventListener('input', updatePreview);
+                el.addEventListener('change', updatePreview);
+                el.dataset.previewWired = '1';
+            }
+        }
+        // Window resize affects font size scaling
+        if (!window._previewResizeWired) {
+            window.addEventListener('resize', updatePreview);
+            window._previewResizeWired = true;
+        }
+    }
+
+    function selectClip(index) {
+        activeClipIndex = index;
+
+        // Update sidebar selection
+        document.querySelectorAll('.clip-thumb').forEach(el => el.classList.remove('active'));
+        const thumb = document.getElementById(`thumb-${index}`);
+        if (thumb) thumb.classList.add('active');
+
+        // Find clip and highlight
+        const highlight = editorHighlights.find(h => h.index === index);
+        const clip = editorClips.find(c => c.highlight.index === index);
+
+        if (!highlight) return;
+
+        // Update info bar
+        const dur = highlight.end_seconds - highlight.start_seconds;
+        document.getElementById('clipInfoBar').innerHTML = `
+            <h3>${escapeHtml(highlight.title)}</h3>
+            <span class="clip-meta">${formatTime(highlight.start_seconds)} &ndash; ${formatTime(highlight.end_seconds)} (${Math.round(dur)}s)</span>
+        `;
+
+        // Update video
+        if (clip) {
+            const video = document.getElementById('editorVideo');
+            video.src = `/clips/${encodeURIComponent(clip.output_path)}`;
+        }
+
+        // Update details
+        document.getElementById('clipDetails').innerHTML = `
+            <div>${escapeHtml(highlight.description)}</div>
+            <div style="margin-top:0.5rem">${highlight.tags.map(t => `<span style="background:var(--accent-dim);border:1px solid var(--accent-border);border-radius:3px;padding:0.1rem 0.4rem;font-size:0.65rem;color:var(--accent);margin-right:0.3rem">${escapeHtml(t)}</span>`).join('')}</div>
+            <div style="margin-top:0.5rem">Confidence: ${Math.round(highlight.confidence * 100)}%</div>
+        `;
+
+        // Clear render status
+        document.getElementById('renderStatus').innerHTML = '';
+
+        // Refresh speakers list for this clip
+        const detectBtn = document.getElementById('detectSpeakersBtn');
+        if (detectBtn) {
+            const speakers = detectedSpeakers[index] || [];
+            detectBtn.textContent = speakers.length > 0
+                ? `Re-detect (${speakers.length} found)`
+                : 'Detect Speakers';
+            detectBtn.disabled = false;
+        }
+        if (document.getElementById('capDiarize').checked) {
+            renderSpeakersList();
+        }
+
+        // Refresh intro/outro display for active clip
+        updateIntroOutroDisplay();
+
+        // Load previous renders for this clip
+        loadPreviousRenders();
+
+        // Wait for video metadata to load before resizing preview
+        setTimeout(updatePreview, 200);
+    }
+
+    async function loadPreviousRenders() {
+        const container = document.getElementById('previousRenders');
+        if (!container || activeClipIndex < 0) { if (container) container.innerHTML = ''; return; }
+
+        try {
+            const res = await fetch(`/jobs/${editorJobId}/renders/${activeClipIndex}`);
+            const renders = await res.json();
+            if (!renders.length) { container.innerHTML = ''; return; }
+
+            container.innerHTML = `<div style="font-size:0.65rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.4rem">Previous Renders</div>`
+                + renders.map(r =>
+                    `<div style="display:flex;align-items:center;gap:0.5rem;padding:0.3rem 0;font-size:0.8rem">
+                        <span style="color:var(--accent);cursor:pointer" onclick="document.getElementById('editorVideo').src='/clips/${encodeURIComponent(r.path)}'">
+                            ${escapeHtml(r.ratio)}
+                        </span>
+                        <span style="color:var(--text-dim);font-size:0.7rem">${r.size_mb} MB</span>
+                        <a href="/clips/${encodeURIComponent(r.path)}" target="_blank" style="color:var(--text-dim);font-size:0.7rem;margin-left:auto">Download</a>
+                    </div>`
+                ).join('');
+        } catch(e) { container.innerHTML = ''; }
+    }
+
+    function setRatio(btn) {
+        document.querySelectorAll('.ratio-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        // Re-evaluate intro/outro aspect warnings against new target ratio
+        updateIntroOutroDisplay();
+        updatePreview();
+    }
+
+    function getActiveRatio() {
+        const btn = document.querySelector('.ratio-btn.active');
+        return btn ? btn.dataset.ratio : '16:9';
+    }
+
+    function getCaptionStyle() {
+        // Build speaker colors and disabled list from speaker settings
+        const speakerSet = speakerSettings[activeClipIndex] || {};
+        const speakerColors = {};
+        const disabledSpeakers = [];
+        for (const [id, s] of Object.entries(speakerSet)) {
+            speakerColors[id] = s.color;
+            if (!s.enabled) disabledSpeakers.push(id);
+        }
+
+        return {
+            enabled: document.getElementById('capEnabled').checked,
+            font_family: document.getElementById('capFont').value,
+            font_size_ratio: parseFloat(document.getElementById('capSize').value),
+            text_color: document.getElementById('capTextColor').value,
+            highlight_color: document.getElementById('capHighlightColor').value,
+            shadow_color: document.getElementById('capShadowColor').value,
+            position: parseFloat(document.getElementById('capPosition').value),
+            style_preset: document.getElementById('capStyle').value,
+            censor_profanity: document.getElementById('capCensor').checked,
+            diarize: document.getElementById('capDiarize').checked,
+            speaker_colors: speakerColors,
+            disabled_speakers: disabledSpeakers,
+            speaker_labels: {},
+        };
+    }
+
+    function onDiarizeToggle() {
+        const enabled = document.getElementById('capDiarize').checked;
+        const panel = document.getElementById('speakersPanel');
+
+        if (enabled && !diarizationAvailable) {
+            panel.style.display = 'block';
+            panel.innerHTML = `<div style="padding:0.6rem 0.8rem;background:rgba(255,181,77,0.08);border:1px solid rgba(255,181,77,0.25);border-radius:6px;font-size:0.8rem;color:var(--orange);margin-top:0.5rem">
+                Speaker diarization requires <code>pyannote.audio</code>.<br>
+                To install, run in your terminal:<br>
+                <code style="display:block;margin-top:0.3rem;padding:0.3rem 0.5rem;background:var(--surface-2);border-radius:4px;color:var(--text)">pip install -e ".[diarize]"</code>
+                <div style="margin-top:0.4rem;font-size:0.75rem;color:var(--text-dim)">Or re-run <code style="padding:0.1rem 0.3rem;background:var(--surface-2);border-radius:3px;color:var(--text)">bash setup.sh</code> and select yes when prompted.</div>
+                <div style="margin-top:0.3rem;font-size:0.7rem;color:var(--text-dim)">Then restart the server. This is a large download (~2 GB).</div>
+            </div>`;
+            return;
+        }
+
+        panel.style.display = enabled ? 'block' : 'none';
+        if (!enabled) return;
+
+        // Restore normal panel content if it was replaced by the install notice
+        if (!panel.querySelector('#detectSpeakersBtn')) {
+            panel.innerHTML = `<div class="form-group">
+                <label>HuggingFace Token <a href="https://hf.co/settings/tokens" target="_blank">Get a token</a></label>
+                <input type="password" id="capHfToken" placeholder="Required for diarization. Or set OPENREEL_HF_TOKEN in .env">
+            </div>
+            <button class="btn btn-sm btn-secondary" id="detectSpeakersBtn" onclick="detectSpeakers()" style="width:100%">Detect Speakers</button>
+            <div class="speakers-list" id="speakersList"></div>`;
+        }
+
+        if (activeClipIndex >= 0 && detectedSpeakers[activeClipIndex]) {
+            renderSpeakersList();
+        }
+    }
+
+    async function detectSpeakers() {
+        if (activeClipIndex < 0) return;
+        const btn = document.getElementById('detectSpeakersBtn');
+        btn.disabled = true;
+        btn.textContent = 'Transcribing...';
+
+        try {
+            const hfToken = document.getElementById('capHfToken').value.trim();
+            let url = `/jobs/${editorJobId}/clips/${activeClipIndex}/transcribe?diarize=true`;
+            if (hfToken) url += `&hf_token=${encodeURIComponent(hfToken)}`;
+            await fetch(url, { method: 'POST' });
+
+            const poll = setInterval(async () => {
+                const res = await fetch(`/jobs/${editorJobId}/clips/${activeClipIndex}/transcribe/status`);
+                const status = await res.json();
+                if (status.status === 'completed') {
+                    clearInterval(poll);
+                    detectedSpeakers[activeClipIndex] = status.speakers;
+                    // Initialize speaker settings if not present
+                    if (!speakerSettings[activeClipIndex]) speakerSettings[activeClipIndex] = {};
+                    status.speakers.forEach((s, i) => {
+                        if (!speakerSettings[activeClipIndex][s.speaker_id]) {
+                            speakerSettings[activeClipIndex][s.speaker_id] = {
+                                color: DEFAULT_SPEAKER_COLORS[i % DEFAULT_SPEAKER_COLORS.length],
+                                enabled: true,
+                            };
+                        }
+                    });
+                    renderSpeakersList();
+                    btn.disabled = false;
+                    btn.textContent = status.speakers.length > 0
+                        ? `Re-detect (${status.speakers.length} found)`
+                        : 'No speakers detected';
+                } else if (status.status === 'failed') {
+                    clearInterval(poll);
+                    btn.disabled = false;
+                    btn.textContent = 'Detect Speakers';
+                    alert('Detection failed: ' + (status.error || 'unknown'));
+                }
+            }, 2000);
+        } catch(e) {
+            btn.disabled = false;
+            btn.textContent = 'Detect Speakers';
+            alert('Failed: ' + e.message);
+        }
+    }
+
+    function renderSpeakersList() {
+        const list = document.getElementById('speakersList');
+        const speakers = detectedSpeakers[activeClipIndex] || [];
+        const settings = speakerSettings[activeClipIndex] || {};
+
+        if (speakers.length === 0) {
+            list.innerHTML = '';
+            return;
+        }
+
+        list.innerHTML = speakers.map(s => {
+            const setting = settings[s.speaker_id] || { color: '#00e676', enabled: true };
+            const sample = s.sample_words.slice(0, 3).join(' ');
+            return `<div class="speaker-row ${setting.enabled ? '' : 'disabled'}" id="speaker-${s.speaker_id}">
+                <input type="checkbox" ${setting.enabled ? 'checked' : ''}
+                    onchange="toggleSpeaker('${s.speaker_id}', this.checked)">
+                <input type="color" value="${setting.color}"
+                    onchange="setSpeakerColor('${s.speaker_id}', this.value)">
+                <span class="speaker-name">${escapeHtml(s.speaker_id)}</span>
+                <span class="speaker-sample">"${escapeHtml(sample)}..."</span>
+            </div>`;
+        }).join('');
+    }
+
+    function toggleSpeaker(speakerId, enabled) {
+        if (!speakerSettings[activeClipIndex]) speakerSettings[activeClipIndex] = {};
+        if (!speakerSettings[activeClipIndex][speakerId]) {
+            speakerSettings[activeClipIndex][speakerId] = { color: '#00e676', enabled: true };
+        }
+        speakerSettings[activeClipIndex][speakerId].enabled = enabled;
+        renderSpeakersList();
+    }
+
+    function setSpeakerColor(speakerId, color) {
+        if (!speakerSettings[activeClipIndex]) speakerSettings[activeClipIndex] = {};
+        if (!speakerSettings[activeClipIndex][speakerId]) {
+            speakerSettings[activeClipIndex][speakerId] = { color: '#00e676', enabled: true };
+        }
+        speakerSettings[activeClipIndex][speakerId].color = color;
+    }
+
+    /* ── Intro / Outro ── */
+
+    function getEffectiveIntroOutro() {
+        const override = clipIntroOutro[activeClipIndex] || {};
+        return {
+            intro: override.intro !== undefined ? override.intro : sessionDefaults.intro_path,
+            outro: override.outro !== undefined ? override.outro : sessionDefaults.outro_path,
+        };
+    }
+
+    function pickIntroOutro(kind) {
+        openBrowser(async (path) => {
+            if (!clipIntroOutro[activeClipIndex]) clipIntroOutro[activeClipIndex] = {};
+            clipIntroOutro[activeClipIndex][kind] = path;
+            await updateIntroOutroDisplay();
+        });
+    }
+
+    function clearIntroOutro(kind) {
+        if (!clipIntroOutro[activeClipIndex]) clipIntroOutro[activeClipIndex] = {};
+        clipIntroOutro[activeClipIndex][kind] = null;
+        updateIntroOutroDisplay();
+    }
+
+    async function updateIntroOutroDisplay() {
+        const effective = getEffectiveIntroOutro();
+
+        for (const kind of ['intro', 'outro']) {
+            const path = effective[kind];
+            const nameEl = document.getElementById(`${kind}Name`);
+            const clearEl = document.getElementById(`${kind}Clear`);
+            const warnEl = document.getElementById(`${kind}Warn`);
+
+            if (path) {
+                const filename = path.split('/').pop();
+                nameEl.textContent = filename;
+                nameEl.title = path;
+                clearEl.style.display = 'inline-block';
+
+                // Probe and compare aspect
+                try {
+                    const r = await fetch(`/probe?path=${encodeURIComponent(path)}`);
+                    if (r.ok) {
+                        const info = await r.json();
+                        const ratio = info.width / info.height;
+                        const targetRatio = aspectRatioToFloat(getActiveRatio());
+                        const tolerance = 0.05;
+                        if (Math.abs(ratio - targetRatio) > tolerance) {
+                            warnEl.innerHTML = `<span style="color:#ffb74d">⚠ ${info.width}×${info.height} (${formatRatio(ratio)}) — will be cropped to ${getActiveRatio()}</span>`;
+                        } else {
+                            warnEl.innerHTML = `<span style="color:var(--accent)">✓ ${info.width}×${info.height} — matches output</span>`;
+                        }
+                    }
+                } catch(e) {
+                    warnEl.innerHTML = '';
+                }
+            } else {
+                nameEl.textContent = 'none';
+                nameEl.title = '';
+                clearEl.style.display = 'none';
+                warnEl.innerHTML = '';
+            }
+        }
+    }
+
+    function aspectRatioToFloat(ratio) {
+        const [w, h] = ratio.split(':').map(Number);
+        return w / h;
+    }
+
+    function formatRatio(ratio) {
+        if (Math.abs(ratio - 16/9) < 0.05) return '16:9';
+        if (Math.abs(ratio - 9/16) < 0.05) return '9:16';
+        if (Math.abs(ratio - 1) < 0.05) return '1:1';
+        if (Math.abs(ratio - 4/3) < 0.05) return '4:3';
+        return ratio.toFixed(2) + ':1';
+    }
+
+    async function applyIntroOutroDefaults() {
+        const eff = getEffectiveIntroOutro();
+        sessionDefaults.intro_path = eff.intro;
+        sessionDefaults.outro_path = eff.outro;
+        if (clipIntroOutro[activeClipIndex]) {
+            delete clipIntroOutro[activeClipIndex];
+        }
+
+        try {
+            await fetch(`/jobs/${editorJobId}/session-defaults`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    aspect_ratio: getActiveRatio(),
+                    caption_style: getCaptionStyle(),
+                    intro_path: sessionDefaults.intro_path,
+                    outro_path: sessionDefaults.outro_path,
+                    watermark: getWatermarkSettings(),
+                }),
+            });
+            alert('Set as session default for all clips.');
+        } catch(e) {
+            alert('Failed to save defaults: ' + e.message);
+        }
+    }
+
+    /* ── Watermark ── */
+
+    function pickWatermark() {
+        openBrowser(async (path) => {
+            document.getElementById('wmName').textContent = path.split('/').pop();
+            document.getElementById('wmName').title = path;
+            document.getElementById('wmName').dataset.path = path;
+            document.getElementById('wmClear').style.display = 'inline-block';
+            updatePreview();
+        });
+    }
+
+    function clearWatermark() {
+        document.getElementById('wmName').textContent = 'none';
+        document.getElementById('wmName').dataset.path = '';
+        document.getElementById('wmClear').style.display = 'none';
+        updatePreview();
+    }
+
+    function setWatermarkPosition(btn) {
+        document.querySelectorAll('.position-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        updatePreview();
+    }
+
+    function getWatermarkSettings() {
+        const path = document.getElementById('wmName').dataset.path || '';
+        const enabled = document.getElementById('wmEnabled').checked && !!path;
+        const posBtn = document.querySelector('.position-btn.active');
+        return {
+            enabled: enabled,
+            image_path: path || null,
+            position: posBtn ? posBtn.dataset.pos : 'bottom-right',
+            opacity: parseFloat(document.getElementById('wmOpacity').value),
+            size_ratio: parseFloat(document.getElementById('wmSize').value),
+            margin: parseInt(document.getElementById('wmMargin').value, 10) || 0,
+        };
+    }
+
+    async function renderClip() {
+        if (activeClipIndex < 0) return;
+
+        const ratio = getActiveRatio();
+        const captionStyle = getCaptionStyle();
+
+        document.getElementById('renderBtn').disabled = true;
+        document.getElementById('renderStatus').innerHTML = 'Starting render...';
+
+        try {
+            const res = await fetch(`/jobs/${editorJobId}/render/${activeClipIndex}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    aspect_ratio: ratio,
+                    caption_style: captionStyle,
+                    intro_path: getEffectiveIntroOutro().intro,
+                    outro_path: getEffectiveIntroOutro().outro,
+                    watermark: getWatermarkSettings(),
+                    hf_token: document.getElementById('capHfToken').value.trim() || null,
+                }),
+            });
+
+            if (!res.ok) { const e = await res.json(); throw new Error(e.detail); }
+
+            // Poll render status
+            const ratioTag = ratio.replace(':', 'x');
+            const pollRender = setInterval(async () => {
+                try {
+                    const sRes = await fetch(`/jobs/${editorJobId}/render/${activeClipIndex}/status?ratio=${ratio}`);
+                    const status = await sRes.json();
+
+                    if (status.status === 'completed') {
+                        clearInterval(pollRender);
+                        document.getElementById('renderBtn').disabled = false;
+                        document.getElementById('renderStatus').innerHTML = `<span class="render-status done">Rendered! <a href="/clips/${encodeURIComponent(status.output_path)}" target="_blank" style="color:var(--accent)">Download</a></span>`;
+
+                        // Show rendered video
+                        document.getElementById('editorVideo').src = `/clips/${encodeURIComponent(status.output_path)}`;
+                        // Refresh previous renders list
+                        loadPreviousRenders();
+                    } else if (status.status === 'failed') {
+                        clearInterval(pollRender);
+                        document.getElementById('renderBtn').disabled = false;
+                        document.getElementById('renderStatus').innerHTML = `<span style="color:var(--error)">Failed: ${escapeHtml(status.error || 'Unknown error')}</span>`;
+                    } else if (status.current_step) {
+                        document.getElementById('renderStatus').innerHTML = escapeHtml(status.current_step);
+                    }
+                } catch(e) {}
+            }, 2000);
+
+        } catch(e) {
+            document.getElementById('renderBtn').disabled = false;
+            document.getElementById('renderStatus').innerHTML = `<span style="color:var(--error)">${escapeHtml(e.message)}</span>`;
+        }
+    }
+
+    function applyToAll() {
+        alert('Settings will be applied to all clips when rendering. Use "Render Clip" on each clip, or batch render will be added in a future update.');
+    }
+
+    /* ═══════════════════════════════════════
+       UTILITIES
+       ═══════════════════════════════════════ */
+
+    function openModal(id) { document.getElementById(id).classList.add('active'); }
+    function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+
+    // Close modals on overlay click or Escape
+    document.querySelectorAll('.modal-overlay').forEach(el => {
+        el.addEventListener('click', e => { if (e.target === el) closeModal(el.id); });
+    });
+    document.addEventListener('keydown', e => {
+        if (e.key === 'Escape') document.querySelectorAll('.modal-overlay.active').forEach(el => closeModal(el.id));
+    });
+
+    function formatTime(sec) {
+        const h = Math.floor(sec / 3600);
+        const m = Math.floor((sec % 3600) / 60);
+        const s = Math.floor(sec % 60);
+        if (h > 0) return `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+        return `${m}:${String(s).padStart(2,'0')}`;
+    }
+
+    function formatSize(mb) { return mb >= 1024 ? `${(mb/1024).toFixed(1)} GB` : `${Math.round(mb)} MB`; }
+    function escapeHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+    function escapeAttr(s) { return s.replace(/\\/g,'\\\\').replace(/'/g,"\\'"); }
+
+    /* ═══════════════════════════════════════
+       INIT
+       ═══════════════════════════════════════ */
+
+    handleRoute();
+    </script>
+</body>
+</html>
