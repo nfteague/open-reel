@@ -116,8 +116,8 @@ if [ "$INSTALL_DIARIZE" = "y" ] || [ "$INSTALL_DIARIZE" = "Y" ]; then
 else
     info "Skipping diarization"
     info "Installing OpenReel..."
-    pip install -e "$SCRIPT_DIR[captions]" --quiet 2>&1 | tail -1
-    ok "OpenReel installed"
+    pip install -e "$SCRIPT_DIR" --quiet 2>&1 | tail -1
+    ok "OpenReel installed (for auto-captions later: pip install -e \".[captions]\")"
 fi
 
 # Verify CLI
