@@ -71,8 +71,8 @@ source "$VENV_DIR/bin/activate"
 if ! command -v openreel &>/dev/null; then
     NEEDS_SETUP=true
     info "Installing OpenReel..."
-    pip install -e "$SCRIPT_DIR[captions]" --quiet 2>&1 | tail -1
-    ok "Installed"
+    pip install -e "$SCRIPT_DIR" --quiet 2>&1 | tail -1
+    ok "Installed (for auto-captions later: pip install -e \".[captions]\")"
 fi
 
 # -- Configure API key if missing ---------------------------------------------

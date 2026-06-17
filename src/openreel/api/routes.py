@@ -525,6 +525,12 @@ async def health_check() -> dict:
     import os
     import shutil
 
+    from dotenv import load_dotenv
+
+    # Mirror how jobs resolve the key (config.resolve_api_key) so a key set only
+    # in the project-root .env is reported as configured rather than "missing".
+    load_dotenv()
+
     ffmpeg_ok = shutil.which("ffmpeg") is not None
     ffprobe_ok = shutil.which("ffprobe") is not None
     api_key_set = bool(os.environ.get("GEMINI_API_KEY") or os.environ.get("OPENREEL_GEMINI_API_KEY"))
@@ -544,7 +550,7 @@ async def health_check() -> dict:
         "ffmpeg": "ok" if ffmpeg_ok else "not found",
         "ffprobe": "ok" if ffprobe_ok else "not found",
         "gemini_api_key": "configured" if api_key_set else "missing",
-        "diarization": "ok" if diarization_ok else "not installed",
+        "diarization": "ok" if diarization_ok else "not installed (optional)",
     }
 
 

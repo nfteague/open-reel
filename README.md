@@ -114,6 +114,10 @@ python -m venv .venv
 pip install -e .
 ```
 
+> **Optional extras (opt-in).** The base install above keeps things lean. Auto-captions
+> and speaker diarization are separate, heavier downloads you only add if you need them:
+> `pip install -e ".[captions]"` (local transcription) — see [Auto-Captions](#auto-captions).
+
 ---
 
 ## Configuration
@@ -162,6 +166,30 @@ All settings use the `OPENREEL_` prefix as environment variables or in your `.en
 | `OPENREEL_ACCURATE_CUTS` | `false` | Re-encode for frame-accurate cuts (slower) |
 | `OPENREEL_ANALYSIS_FPS` | `2` | FPS for analysis uploads (lower = faster uploads) |
 | `OPENREEL_DOWNSCALE_FOR_ANALYSIS` | `false` | Downscale to 720p before uploading |
+
+---
+
+## Verify it works
+
+Before pointing OpenReel at a multi-hour VOD, confirm the install in under a minute:
+
+```bash
+# 1. CLI is on PATH (venv must be active)
+openreel --help
+
+# 2. Health check — ffmpeg, ffprobe, and your API key should all be green
+openreel serve &
+curl http://localhost:8000/health
+# → {"healthy":true,"ffmpeg":"ok","ffprobe":"ok","gemini_api_key":"configured",...}
+
+# 3. End-to-end dry run on a short clip (analysis only, no upload of a huge file)
+#    Use any short .mp4 you have handy; --dry-run writes a manifest without extracting.
+openreel run sample.mp4 --dry-run
+```
+
+If `/health` shows `"healthy": true` and the dry run produces a `manifest.json`, your
+0→1 setup is complete. (`gemini_api_key` is read from your `.env` automatically — no need
+to `export` it.)
 
 ---
 
@@ -366,56 +394,66 @@ curl http://localhost:8000/health
 
 ---
 
-## Setup for AI Agents (Claude Code, Codex, etc.)
+## Setup for AI Agents (Claude Code, Cursor, Codex, etc.)
 
-If you're using an AI coding agent to set up and run OpenReel, here's what the agent needs to do:
+If a user asks you (an AI agent) to "install and run OpenReel," follow this flow.
+**Steps 1–2 are silent; step 3 you must STOP and ASK the user before continuing.**
 
-### 1. Check prerequisites
+### 1. Clone and check prerequisites
 
 ```bash
+git clone https://github.com/nfteague/open-reel.git && cd open-reel
 python3 --version   # needs 3.11+
-ffmpeg -version     # must be installed
-ffprobe -version    # must be installed
+ffmpeg -version     # must be installed (ffprobe ships with it)
 ```
 
-### 2. Create virtual environment and install
+### 2. Create the virtual environment and install the base package
 
 ```bash
-cd /path/to/open-reel
 python3 -m venv .venv
-source .venv/bin/activate   # Linux/macOS
-# .venv\Scripts\Activate.ps1  # Windows PowerShell
+source .venv/bin/activate          # Windows: .venv\Scripts\Activate.ps1
 pip install -e .
 ```
 
-### 3. Configure API key
+### 3. STOP and ask the user two questions
+
+Do not assume answers — ask, then act on the replies:
+
+1. **"Do you want auto-captions?"** Explain the tradeoff: captions burn word-by-word
+   subtitles into clips, but require an extra, heavier download (`faster-whisper`).
+   - If **yes** → `pip install -e ".[captions]"`
+   - If **no** → skip it (they can add it later)
+2. **"What's your Gemini API key?"** Tell them it's free at
+   https://aistudio.google.com/apikey (the key starts with `AIza`). Then write it to `.env`:
 
 ```bash
 cp .env.example .env
-# Edit .env to add: GEMINI_API_KEY=<user's key>
+# Replace your-api-key-here with the key the user gave you:
+# GEMINI_API_KEY=AIza...
 ```
 
-### 4. Verify installation
+### 4. Finish setup and start the server
 
 ```bash
-openreel --help           # CLI works
-openreel serve &          # start server
-curl http://localhost:8000/health   # all checks pass
+curl -s http://localhost:8000/health   # before: confirm prerequisites; expect healthy:true after key is set
+openreel serve                          # starts the dashboard at http://localhost:8000
 ```
 
-### 5. Run a job
+### 5. Tell the user it's ready
+
+Let them know the server is running at http://localhost:8000, **and that they can point
+you at a video** to process it for them — e.g. they say "run it on ~/Downloads/stream.mp4"
+and you run:
 
 ```bash
-openreel run /path/to/video.mp4 -p gaming
+openreel run /path/to/video.mp4 -p gaming   # presets: general, gaming, irl, music, sports, educational
 ```
 
 **Notes for agents:**
-- The `.env` file in the project root is auto-loaded — no need to export variables
+- The `.env` file in the project root is auto-loaded — no need to `export` variables (this applies to `/health` too)
 - The `openreel` CLI is available after `pip install -e .` (registered as a console script)
-- For captions, also run `pip install -e ".[captions]"`
-- The web dashboard at http://localhost:8000 provides a GUI alternative to the CLI
+- The web dashboard at http://localhost:8000 is a GUI alternative to the CLI
 - All output goes to `./openreel_output/<video_stem>/` by default
-- Check `/health` endpoint to verify ffmpeg and API key are configured
 
 ---
 
